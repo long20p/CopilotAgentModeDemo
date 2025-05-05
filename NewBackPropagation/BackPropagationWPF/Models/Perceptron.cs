@@ -6,7 +6,7 @@ namespace BackPropagationWPF.Models
         private double[] deltaW;
         private double zValue;
         private double yValue;
-        private double theta;
+        private double theta; // bias
 
         // Learning parameters
         private readonly double eta = 0.2;    // Learning rate

@@ -46,6 +46,9 @@ namespace BackPropagationWPF.Controls
 
             // Set as the source of our image control
             canvasImage.Source = drawingSurface;
+            
+            // Force UI update
+            canvasImage.InvalidateVisual();
         }
 
         /// <summary>
@@ -62,21 +65,64 @@ namespace BackPropagationWPF.Controls
                 96, 96,
                 PixelFormats.Bgra32,
                 null);
+                
+            // Fill the small bitmap with white first
+            smallBitmap.Clear(Colors.White);
 
-            // Scale down the image to 30x30
-            using (var drawingContext = smallBitmap.GetRenderTargetForComposition())
+            // Get the dimensions for scaling
+            double scaleX = (double)drawingSurface.PixelWidth / 30;
+            double scaleY = (double)drawingSurface.PixelHeight / 30;
+            
+            // Lock both bitmaps for pixel manipulation
+            drawingSurface.Lock();
+            smallBitmap.Lock();
+            
+            try
             {
-                //drawingContext.Clear(Colors.White);
-
-                var visual = new DrawingVisual();
-                using (var dc = visual.RenderOpen())
+                // For each pixel in the small bitmap, sample from the original
+                for (int y = 0; y < 30; y++)
                 {
-                    dc.DrawImage(
-                        drawingSurface,
-                        new Rect(0, 0, 30, 30));
+                    for (int x = 0; x < 30; x++)
+                    {
+                        // Calculate the corresponding region in the original image
+                        int sourceStartX = (int)(x * scaleX);
+                        int sourceEndX = (int)((x + 1) * scaleX);
+                        int sourceStartY = (int)(y * scaleY);
+                        int sourceEndY = (int)((y + 1) * scaleY);
+                        
+                        // Check if any pixel in this region is black
+                        bool hasBlackPixel = false;
+                        
+                        for (int sy = sourceStartY; sy < sourceEndY && sy < drawingSurface.PixelHeight; sy++)
+                        {
+                            for (int sx = sourceStartX; sx < sourceEndX && sx < drawingSurface.PixelWidth; sx++)
+                            {
+                                Color color = drawingSurface.GetPixel(sx, sy);
+                                // If we detect any non-white pixel, mark as black
+                                if (color.R < 250 || color.G < 250 || color.B < 250)
+                                {
+                                    hasBlackPixel = true;
+                                    break;
+                                }
+                            }
+                            
+                            if (hasBlackPixel)
+                                break;
+                        }
+                        
+                        // If there was any black in the original region, set the small bitmap pixel to black
+                        if (hasBlackPixel)
+                        {
+                            smallBitmap.SetPixel(x, y, Colors.Black);
+                        }
+                    }
                 }
-
-                drawingContext.DrawDrawingVisual(visual);
+            }
+            finally
+            {
+                // Unlock both bitmaps
+                smallBitmap.Unlock();
+                drawingSurface.Unlock();
             }
 
             return smallBitmap;
@@ -85,7 +131,7 @@ namespace BackPropagationWPF.Controls
         /// <summary>
         /// Converts the current drawing to an array of doubles (0-1) for the neural network
         /// </summary>
-        public double[] ConvertToInputArray()
+        public double[] ConvertToInputArray(out ImageSource bitmap)
         {
             var smallBitmap = GetProcessedImage();
             double[] result = new double[30 * 30];
@@ -110,7 +156,7 @@ namespace BackPropagationWPF.Controls
                             double value = 1.0 - ((color.R + color.G + color.B) / (3.0 * 255.0));
 
                             // Threshold to make binary
-                            result[index++] = value > 0.5 ? 1.0 : 0.0;
+                            result[index++] = value > 0 ? 1.0 : 0.0;
                         }
                     }
                 }
@@ -121,6 +167,7 @@ namespace BackPropagationWPF.Controls
                 smallBitmap.Unlock();
             }
 
+            bitmap = smallBitmap;
             return result;
         }
 

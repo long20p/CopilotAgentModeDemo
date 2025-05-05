@@ -88,7 +88,7 @@ namespace BackPropagationWPF.Models
 
                 } while (totalError > allowedError);
 
-                if (round <= maxIterations)
+                if (round < maxIterations)
                 {
                     OnTrainingProgress?.Invoke($"Training completed successfully after {round} rounds.", totalError, round);
                 }
@@ -245,10 +245,10 @@ namespace BackPropagationWPF.Models
                         // Weight update rule: dw = -η * dE/dy * dy/dz * input
                         perceptron.DeltaW[i] = -1 * perceptron.Eta * perceptron.dE_dY * perceptron.dy_dz * lowerLevelInputs[i];
                         perceptron.Weights[i] += perceptron.DeltaW[i];
-
-                        // Threshold update
-                        perceptron.Theta += perceptron.Phi * perceptron.dE_dY * perceptron.YValue * (1 - perceptron.YValue) * perceptron.Lambda;
                     }
+                    
+                    // Threshold update
+                    perceptron.Theta += perceptron.Phi * perceptron.dE_dY * perceptron.dy_dz;
                 }
             }
 
@@ -264,10 +264,10 @@ namespace BackPropagationWPF.Models
                     // Same weight update rule as for hidden layers
                     perceptron.DeltaW[i] = -1 * perceptron.Eta * perceptron.dE_dY * perceptron.dy_dz * lastHiddenLayerOutputs[i];
                     perceptron.Weights[i] += perceptron.DeltaW[i];
-
-                    // Threshold update
-                    perceptron.Theta += perceptron.Phi * perceptron.dE_dY * perceptron.YValue * (1 - perceptron.YValue) * perceptron.Lambda;
                 }
+
+                // Threshold update
+                perceptron.Theta += perceptron.Phi * perceptron.dE_dY * perceptron.dy_dz;
             }
         }
     }

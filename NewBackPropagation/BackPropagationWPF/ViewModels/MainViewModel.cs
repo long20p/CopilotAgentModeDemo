@@ -7,6 +7,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace BackPropagationWPF.ViewModels
@@ -22,8 +23,9 @@ namespace BackPropagationWPF.ViewModels
         private string trainingFolderPath = "";
         private int hiddenLayerCount = 1;
         private string hiddenLayerElements = "15";
-        private int maxIterations = 1000;
-        private double allowedError = 0.001;
+        private int maxIterations = 10000;
+        private double allowedError = 0.01;
+        private ImageSource? smallImage;
 
         // Collection of letters and their probabilities for the result display
         private ObservableCollection<LetterProbability> resultLetters = new ObservableCollection<LetterProbability>();
@@ -147,6 +149,16 @@ namespace BackPropagationWPF.ViewModels
             }
         }
 
+        public ImageSource? SmallImage
+        {
+            get => smallImage;
+            set
+            {
+                smallImage = value;
+                OnPropertyChanged();
+            }
+        }
+
         public bool CanTrain => !string.IsNullOrEmpty(TrainingFolderPath) && !IsTraining;
         public bool CanRecognize => IsNetworkTrained && !IsTraining;
 
@@ -163,7 +175,7 @@ namespace BackPropagationWPF.ViewModels
         public ICommand RecognizeCommand => recognizeCommand ??= new RelayCommand(Recognize, _ => CanRecognize);
 
         private ICommand? resetCommand;
-        public ICommand ResetCommand => resetCommand ??= new RelayCommand(ResetDrawing);
+        public ICommand ResetCommand => resetCommand ??= new RelayCommand(Reset);
 
         #endregion
 
@@ -191,7 +203,8 @@ namespace BackPropagationWPF.ViewModels
         private async void Train()
         {
             try
-            {                // Parse hidden layer configuration
+            {                
+                // Parse hidden layer configuration
                 int[]? layerElements = ParseHiddenLayerElements();
                 if (layerElements == null || layerElements.Length != HiddenLayerCount)
                 {
@@ -247,7 +260,7 @@ namespace BackPropagationWPF.ViewModels
                 await network.TrainAsync(trainingSet, MaxIterations);
 
                 IsNetworkTrained = true;
-                StatusMessage = "Training completed.";
+                //StatusMessage = "Training completed.";
             }
             catch (Exception ex)
             {
@@ -290,16 +303,19 @@ namespace BackPropagationWPF.ViewModels
 
                 // Clear previous results
                 ResultMessage = "Processing...";
+                SmallImage = null;
                 ResultLetters.Clear();
 
                 // Convert drawing to input array
-                double[] inputs = canvas.ConvertToInputArray();
+                ImageSource reducedImage;
+                double[] inputs = canvas.ConvertToInputArray(out reducedImage);
                 // Subscribe to recognition results
                 network.OnRecognitionResult += (result, probabilities) =>
                 {
                     System.Windows.Application.Current.Dispatcher.Invoke(() =>
                     {
                         ResultMessage = result;
+                        SmallImage = reducedImage;
                         ResultLetters.Clear();
 
                         // Add all letter probabilities to the collection
@@ -331,7 +347,7 @@ namespace BackPropagationWPF.ViewModels
         /// <summary>
         /// Reset the drawing canvas
         /// </summary>
-        private void ResetDrawing(object? parameter)
+        private void Reset(object? parameter)
         {
             // This will be called from the UI, which is responsible for resetting the canvas
             if (parameter is not Controls.DrawingCanvas canvas)
@@ -340,6 +356,7 @@ namespace BackPropagationWPF.ViewModels
             }
 
             canvas.ResetCanvas();
+            SmallImage = null;
             ResultMessage = "";
             ResultLetters.Clear();
         }
@@ -425,7 +442,7 @@ namespace BackPropagationWPF.ViewModels
                             {
                                 var color = writeableBitmap.GetPixel(x, y);
                                 double value = 1.0 - ((color.R + color.G + color.B) / (3.0 * 255.0));
-                                inputs[y * width + x] = value > 0.5 ? 1.0 : 0.0;
+                                inputs[y * width + x] = value > 0 ? 1.0 : 0.0;
                             }
                         }
                     }

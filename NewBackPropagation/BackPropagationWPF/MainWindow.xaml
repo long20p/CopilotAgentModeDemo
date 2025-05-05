@@ -119,17 +119,20 @@
                                            Margin="10" 
                                            HorizontalAlignment="Center"/>
                     
-                    <StackPanel Grid.Column="1" Margin="10">
+                    <DockPanel Grid.Column="1" Margin="10">
                         <Button Content="Recognize" 
+                                DockPanel.Dock="Top"
                                 Command="{Binding RecognizeCommand}"
                                 CommandParameter="{Binding ElementName=DrawingCanvas}"
                                 Background="#28A745"
                                 IsEnabled="{Binding CanRecognize}"/>
                         <Button Content="Reset" 
+                                DockPanel.Dock="Top"
                                 Command="{Binding ResetCommand}" 
                                 CommandParameter="{Binding ElementName=DrawingCanvas}"
                                 Margin="0,10,0,0"/>
-                    </StackPanel>
+                        <Image DockPanel.Dock="Bottom" Width="30" Height="30" Source="{Binding SmallImage}" Stretch="Uniform" />
+                    </DockPanel>
                 </Grid>
             </StackPanel>
         </Border>
